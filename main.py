@@ -19,9 +19,6 @@ from selenium.webdriver.common.action_chains import ActionChains
 from undetected_chromedriver.v2 import Chrome as UndetectedChrome, ChromeOptions as UndetectedChromeOptions
 from selenium.common.exceptions import TimeoutException, InvalidArgumentException, NoSuchElementException, StaleElementReferenceException, ElementNotInteractableException, ElementClickInterceptedException, WebDriverException
 
-import subprocess, functools, os
-import selenium.webdriver
-
 class EndCodeException(Exception):
     pass
 
