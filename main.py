@@ -291,7 +291,7 @@ try:
     options2.add_argument('--hide-scrollbars')
     options2.add_argument("--log-level=3")
     options2.add_argument("--user-data-dir=" + getenv("LOCALAPPDATA") + "\\Google\\Chrome\\Selenium User Data")
-    #options2.headless=True
+    options2.headless=True
     
     driver1 = webdriver.Chrome(ChromeDriverManager().install(), desired_capabilities=caps)
     driver2 = webdriver.Chrome(ChromeDriverManager().install(), options=options2)
