@@ -4,10 +4,9 @@ from re import findall
 from html import unescape
 from shutil import rmtree
 from subprocess import call
-from threading import Thread
-from dotenv import load_dotenv
 from selenium import webdriver
 from os import getenv, path, makedirs
+from cryptography.fernet import Fernet
 from shelve import open as shelve_open
 from datetime import datetime, timedelta
 from selenium.webdriver.common.by import By
@@ -19,6 +18,9 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.action_chains import ActionChains
 from undetected_chromedriver.v2 import Chrome as UndetectedChrome, ChromeOptions as UndetectedChromeOptions
 from selenium.common.exceptions import TimeoutException, InvalidArgumentException, NoSuchElementException, StaleElementReferenceException, ElementNotInteractableException, ElementClickInterceptedException, WebDriverException
+
+import subprocess, functools, os
+import selenium.webdriver
 
 class EndCodeException(Exception):
     pass
@@ -146,95 +148,6 @@ def colour_key(message, number, path):
     change_colour(path)
     driver2.find_element_by_xpath(xpaths.edit_active_cell_path).send_keys(Keys.ENTER)
 
-def sheets_setup():
-    send_keys("Song Artist(s)", Keys.ARROW_RIGHT)
-    send_keys("Song Name", Keys.ARROW_RIGHT)
-    send_keys("Weeks at #1")
-    i = 0
-    while length_of_charts > lengths[i]:
-        send_keys(Keys.ARROW_RIGHT, "Weeks in Top " + str(lengths[i]))
-        i = i + 1
-    if length_of_charts > 1:
-        send_keys(Keys.ARROW_RIGHT, "Weeks in Top " + str(length_of_charts))
-    send_keys(Keys.ARROW_DOWN, Keys.ARROW_UP)
-    
-    if get_rows_or_columns(xpaths.find_column_path, "Could not get position of selection in spreadsheet.") != 1:
-        hold_key(Keys.SHIFT)
-        send_keys(Keys.ARROW_LEFT)
-        while driver2.find_element_by_xpath(xpaths.sheets_selection_path).get_attribute("style").split("left: ")[1].split("px;")[0] != "0":
-            send_keys(Keys.ARROW_LEFT)
-        release_key(Keys.SHIFT)
-    if driver2.find_element_by_xpath(xpaths.sheets_bold_path).get_attribute("aria-pressed") == "false":
-        send_key_combo(Keys.CONTROL, 'b')
-    
-    send_key_combo(Keys.CONTROL, Keys.SPACE)
-    click_menu_item(xpaths.sheets_format_button_path, xpaths.sheets_text_wrapping_menu_path, xpaths.text_wrapping_clip_path)
-    send_keys(Keys.ARROW_RIGHT)
-            
-    go_to_cell(chr(columns_needed(length_of_charts) + 64) + "2")
-    colour_key("BLUE = Consecutive", 4, xpaths.sheets_blue_path)
-    colour_key("RED = Non-Consecutive", 3, xpaths.sheets_red_path)
-    
-    send_key_combo(Keys.CONTROL, Keys.HOME)
-    
-    send_key_combo(Keys.SHIFT, Keys.ARROW_RIGHT)
-    send_key_combo(Keys.CONTROL, Keys.SPACE)
-    click_menu_item(xpaths.sheets_format_button_path, xpaths.sheets_number_menu_path, xpaths.format_plain_text_path)
-    
-    send_keys(Keys.ARROW_RIGHT)
-    toggle_keyboard_shortcuts("false")
-    while get_rows_or_columns(xpaths.find_column_path, "Could not get position of selection in spreadsheet.") + 1 <= columns_needed(length_of_charts) - 2:
-        send_key_combo(Keys.ALT, 'd')
-        while driver2.find_element_by_xpath(xpaths.sheets_filter_views_menu_path).get_attribute("class") != "goog-menuitem apps-menuitem goog-submenu goog-menuitem-highlight":
-            send_keys(Keys.ARROW_DOWN)
-        send_keys(Keys.ARROW_RIGHT, Keys.ENTER, Keys.ARROW_RIGHT)
-        WebDriverWait(driver2, 10).until(EC.presence_of_element_located((By.XPATH, xpaths.filter_view_name_path))).send_keys(Keys.CONTROL + 'a', Keys.BACKSPACE)
-        driver2.find_element_by_xpath(xpaths.filter_view_name_path).send_keys(driver2.find_element_by_xpath(xpaths.formula_bar_path).get_attribute("innerHTML").split("<br>")[0], Keys.ENTER)
-        try:
-            driver2.find_element_by_xpath(xpaths.filter_view_popup_dismiss_path).click()
-        except NoSuchElementException:
-            pass
-        driver2.find_element_by_xpath(xpaths.filter_view_input_path).send_keys(Keys.CONTROL + 'a', Keys.BACKSPACE)
-        driver2.find_element_by_xpath(xpaths.filter_view_input_path).send_keys("A1:" + chr(columns_needed(length_of_charts) + 62) + str(rows), Keys.ENTER)
-        send_key_combo(Keys.CONTROL, 'r', Keys.ALT)
-        WebDriverWait(driver2, 5).until(EC.presence_of_element_located((By.XPATH, xpaths.sort_column_path))).click()
-        driver2.find_element_by_xpath(xpaths.filter_view_close_path).click()
-    
-    double_click(xpaths.sheets_name_path)
-    WebDriverWait(driver2, 5).until(EC.presence_of_element_located((By.XPATH, xpaths.sheets_rename_input_path))).send_keys("Singles", Keys.ENTER)
-    
-    click_menu_item(xpaths.sheets_view_button_path, xpaths.sheets_freeze_menu_path, xpaths.freeze_one_row_path)
-    click_menu_item(xpaths.sheets_view_button_path, xpaths.sheets_freeze_menu_path, xpaths.freeze_two_columns_path)
-    
-    with shelve_open(path.join(location, "variables")) as d:
-        d[spreadsheet_link] = True
-
-def edit_filter_views():
-    toggle_keyboard_shortcuts("false")
-    filter_view_names = []
-    filter_views = driver2.find_elements_by_xpath(xpaths.filter_views_path)
-    for filter_view in filter_views:
-        filter_view_names.append(filter_view.get_attribute("innerHTML").split("""<div class="goog-menuitem-checkbox"></div>""")[1])
-    for filter_view_name in filter_view_names:
-        send_key_combo(Keys.ALT, 'd')
-        while driver2.find_element_by_xpath(xpaths.sheets_filter_views_menu_path).get_attribute("class") != "goog-menuitem apps-menuitem goog-submenu goog-menuitem-highlight":
-            send_keys(Keys.ARROW_DOWN)
-        send_keys(Keys.ARROW_RIGHT)
-        while driver2.find_element_by_xpath(xpaths.filter_views_path + """[contains(text(),'""" + filter_view_name + """')]/parent::*""").get_attribute("class") != "goog-menuitem apps-menuitem goog-option goog-menuitem-highlight":
-            send_keys(Keys.ARROW_DOWN)
-        send_keys(Keys.ENTER)
-        WebDriverWait(driver2, 10).until(EC.presence_of_element_located((By.XPATH, xpaths.filter_view_input_path))).send_keys(Keys.CONTROL + 'a', Keys.BACKSPACE)
-        driver2.find_element_by_xpath(xpaths.filter_view_input_path).send_keys("A1:" + chr(columns_needed(length_of_charts) + 62) + str(rows), Keys.ENTER)
-        try:
-            driver2.find_element_by_xpath(xpaths.filter_view_popup_dismiss_path).click()
-        except NoSuchElementException:
-            pass
-        try:
-            driver2.find_element_by_xpath(xpaths.sheets_understood_path).click()
-        except NoSuchElementException:
-            pass
-        driver2.find_element_by_xpath(xpaths.filter_view_close_path).click()
-
 location = path.join(getenv("APPDATA"), "Crownnote")
 if not path.exists(location):
     makedirs(location)
@@ -266,14 +179,9 @@ with shelve_open(path.join(location, "variables")) as d:
     spreadsheet_link = d["spreadsheet_link"]
 personal_link_path = """//*[@id="block-views-32f0a13b6ed96df9665df3ef2668965a"]/div/div/div/div[@class='view-content']//a[contains(text(),'""" + username + """')]/parent::*/parent::*//a[@class='btn btn--plain']"""
 
-load_dotenv()
-
-login_username = str(getenv('CROWNNOTE_USERNAME'))
-login_password = str(getenv('CROWNNOTE_PASSWORD'))
-google_username = str(getenv('GOOGLE_USERNAME'))
-google_password = str(getenv('GOOGLE_PASSWORD'))
-recovery_phone = str(getenv('RECOVERY_PHONE'))
-recovery_phone_website = str(getenv('RECOVERY_PHONE_WEBSITE'))
+with open('main.key', 'rb') as key:
+    with open('.enc', 'rb') as enc_file:
+        decrypted = str(Fernet(key.read()).decrypt(enc_file.read()))[2:][:-1].split("\\r\\n")
 
 lengths = [3, 5, 10, 20, 40, 75, 100]
 
@@ -309,21 +217,21 @@ try:
                 except ElementNotInteractableException:
                     pass
             driver_get(driver_login, "https://accounts.google.com/signin/v2/identifier")
-            WebDriverWait(driver_login, 30).until(EC.presence_of_element_located((By.XPATH, xpaths.google_username_path))).send_keys(google_username, Keys.ENTER)
-            WebDriverWait(driver_login, 30).until(EC.visibility_of_element_located((By.XPATH, xpaths.google_password_path))).send_keys(google_password, Keys.ENTER)
+            WebDriverWait(driver_login, 30).until(EC.presence_of_element_located((By.XPATH, xpaths.google_username_path))).send_keys(decrypted[2], Keys.ENTER)
+            WebDriverWait(driver_login, 30).until(EC.visibility_of_element_located((By.XPATH, xpaths.google_password_path))).send_keys(decrypted[3], Keys.ENTER)
             WebDriverWait(driver_login, 30).until(lambda driver_login: driver_login.find_elements(By.XPATH, xpaths.google_phone_number_input_path) or driver_login.find_elements(By.XPATH, xpaths.google_confirm_phone_number_path) or driver_login.find_elements(By.XPATH, xpaths.google_text_path) or driver_login.find_elements(By.XPATH, xpaths.google_home_path))
             timeout = time() + 5
             while time() < timeout:
                 try:
                     try:
-                        driver_login.find_element_by_xpath(xpaths.google_phone_number_input_path).send_keys(recovery_phone, Keys.ENTER)
+                        driver_login.find_element_by_xpath(xpaths.google_phone_number_input_path).send_keys(decrypted[4], Keys.ENTER)
                     except NoSuchElementException:
                         try:
                             try:
                                 driver_login.find_element_by_xpath(xpaths.google_confirm_phone_number_path).click()
                             except ElementClickInterceptedException:
                                 WebDriverWait(driver_login, 10).until(EC.element_to_be_clickable((By.XPATH, xpaths.google_confirm_phone_number_path))).click()
-                            WebDriverWait(driver_login, 30).until(EC.visibility_of_element_located((By.XPATH, xpaths.google_phone_number_input_path))).send_keys(recovery_phone, Keys.ENTER)
+                            WebDriverWait(driver_login, 30).until(EC.visibility_of_element_located((By.XPATH, xpaths.google_phone_number_input_path))).send_keys(decrypted[4], Keys.ENTER)
                         except NoSuchElementException:
                             try:
                                 try:
@@ -336,7 +244,7 @@ try:
                                     driver_verification = webdriver.Chrome(ChromeDriverManager().install(), options=headless)
                                     call("cls", shell=True)
                                     try:
-                                        driver_get(driver_verification, recovery_phone_website)
+                                        driver_get(driver_verification, decrypted[5])
                                         WebDriverWait(driver_verification, 45).until(EC.visibility_of_element_located((By.XPATH, xpaths.recovery_phone_messages_path)))
                                         timeout2 = time() + 30
                                         while time() < timeout2:
@@ -386,7 +294,7 @@ try:
     options2.add_argument('--hide-scrollbars')
     options2.add_argument("--log-level=3")
     options2.add_argument("--user-data-dir=" + getenv("LOCALAPPDATA") + "\\Google\\Chrome\\Selenium User Data")
-    options2.headless=True
+    #options2.headless=True
     
     driver1 = webdriver.Chrome(ChromeDriverManager().install(), desired_capabilities=caps)
     driver2 = webdriver.Chrome(ChromeDriverManager().install(), options=options2)
@@ -396,8 +304,8 @@ try:
         
         driver_get(driver1, "https://crownnote.com/user/login")
         WebDriverWait(driver1, 15).until(EC.presence_of_element_located((By.XPATH, xpaths.username_path)))
-        driver1.find_element_by_xpath(xpaths.username_path).send_keys(login_username)
-        driver1.find_element_by_xpath(xpaths.password_path).send_keys(login_password, Keys.ENTER)
+        driver1.find_element_by_xpath(xpaths.username_path).send_keys(decrypted[0])
+        driver1.find_element_by_xpath(xpaths.password_path).send_keys(decrypted[1], Keys.ENTER)
         WebDriverWait(driver1, 30).until(EC.presence_of_element_located((By.XPATH, xpaths.user_menu_path)))
         driver_get(driver1, "https://crownnote.com/users/" + username.replace(" ", "-"))
         
@@ -455,9 +363,67 @@ try:
         with shelve_open(path.join(location, "variables")) as d:
             setup = d[spreadsheet_link]
         if setup == False:
-            a = Thread(target=sheets_setup)
-            a.start()
-            a.join()
+            send_keys("Song Artist(s)", Keys.ARROW_RIGHT)
+            send_keys("Song Name", Keys.ARROW_RIGHT)
+            send_keys("Weeks at #1")
+            i = 0
+            while length_of_charts > lengths[i]:
+                send_keys(Keys.ARROW_RIGHT, "Weeks in Top " + str(lengths[i]))
+                i = i + 1
+            if length_of_charts > 1:
+                send_keys(Keys.ARROW_RIGHT, "Weeks in Top " + str(length_of_charts))
+            send_keys(Keys.ARROW_DOWN, Keys.ARROW_UP)
+            
+            if get_rows_or_columns(xpaths.find_column_path, "Could not get position of selection in spreadsheet.") != 1:
+                hold_key(Keys.SHIFT)
+                send_keys(Keys.ARROW_LEFT)
+                while driver2.find_element_by_xpath(xpaths.sheets_selection_path).get_attribute("style").split("left: ")[1].split("px;")[0] != "0":
+                    send_keys(Keys.ARROW_LEFT)
+                release_key(Keys.SHIFT)
+            if driver2.find_element_by_xpath(xpaths.sheets_bold_path).get_attribute("aria-pressed") == "false":
+                send_key_combo(Keys.CONTROL, 'b')
+            
+            send_key_combo(Keys.CONTROL, Keys.SPACE)
+            click_menu_item(xpaths.sheets_format_button_path, xpaths.sheets_text_wrapping_menu_path, xpaths.text_wrapping_clip_path)
+            send_keys(Keys.ARROW_RIGHT)
+            
+            go_to_cell(chr(columns_needed(length_of_charts) + 64) + "2")
+            colour_key("BLUE = Consecutive", 4, xpaths.sheets_blue_path)
+            colour_key("RED = Non-Consecutive", 3, xpaths.sheets_red_path)
+            
+            send_key_combo(Keys.CONTROL, Keys.HOME)
+            
+            send_key_combo(Keys.SHIFT, Keys.ARROW_RIGHT)
+            send_key_combo(Keys.CONTROL, Keys.SPACE)
+            click_menu_item(xpaths.sheets_format_button_path, xpaths.sheets_number_menu_path, xpaths.format_plain_text_path)
+            
+            send_keys(Keys.ARROW_RIGHT)
+            toggle_keyboard_shortcuts("false")
+            while get_rows_or_columns(xpaths.find_column_path, "Could not get position of selection in spreadsheet.") + 1 <= columns_needed(length_of_charts) - 2:
+                send_key_combo(Keys.ALT, 'd')
+                while driver2.find_element_by_xpath(xpaths.sheets_filter_views_menu_path).get_attribute("class") != "goog-menuitem apps-menuitem goog-submenu goog-menuitem-highlight":
+                    send_keys(Keys.ARROW_DOWN)
+                send_keys(Keys.ARROW_RIGHT, Keys.ENTER, Keys.ARROW_RIGHT)
+                WebDriverWait(driver2, 10).until(EC.presence_of_element_located((By.XPATH, xpaths.filter_view_name_path))).send_keys(Keys.CONTROL + 'a', Keys.BACKSPACE)
+                driver2.find_element_by_xpath(xpaths.filter_view_name_path).send_keys(driver2.find_element_by_xpath(xpaths.formula_bar_path).get_attribute("innerHTML").split("<br>")[0], Keys.ENTER)
+                try:
+                    driver2.find_element_by_xpath(xpaths.filter_view_popup_dismiss_path).click()
+                except NoSuchElementException:
+                    pass
+                driver2.find_element_by_xpath(xpaths.filter_view_input_path).send_keys(Keys.CONTROL + 'a', Keys.BACKSPACE)
+                driver2.find_element_by_xpath(xpaths.filter_view_input_path).send_keys("A1:" + chr(columns_needed(length_of_charts) + 62) + str(rows), Keys.ENTER)
+                send_key_combo(Keys.CONTROL, 'r', Keys.ALT)
+                WebDriverWait(driver2, 5).until(EC.presence_of_element_located((By.XPATH, xpaths.sort_column_path))).click()
+                driver2.find_element_by_xpath(xpaths.filter_view_close_path).click()
+            
+            double_click(xpaths.sheets_name_path)
+            WebDriverWait(driver2, 5).until(EC.presence_of_element_located((By.XPATH, xpaths.sheets_rename_input_path))).send_keys("Singles", Keys.ENTER)
+            
+            click_menu_item(xpaths.sheets_view_button_path, xpaths.sheets_freeze_menu_path, xpaths.freeze_one_row_path)
+            click_menu_item(xpaths.sheets_view_button_path, xpaths.sheets_freeze_menu_path, xpaths.freeze_two_columns_path)
+            
+            with shelve_open(path.join(location, "variables")) as d:
+                d[spreadsheet_link] = True
         
         buttons = driver1.find_elements_by_class_name("toggle-button")
         
@@ -467,7 +433,7 @@ try:
             places = driver1.find_elements_by_xpath(list_path)
             for place in places:
                 links.append([place.get_attribute("href"), place.get_attribute('innerHTML').split("</span>")[0].split(">")[-1]])
-        
+
         create_shelve_file("variables", "first run", False)
         with shelve_open(path.join(location, "songs"))as d:
             for item in d:
@@ -607,9 +573,30 @@ try:
                         if current_row + 1 == rows:
                             driver2.find_element_by_xpath(xpaths.add_row_button_path).click()
                             rows = rows + int(driver2.find_element_by_xpath(xpaths.add_row_input_path).get_attribute("value"))
-                            a = Thread(target=edit_filter_views)
-                            a.start()
-                            a.join()
+                            toggle_keyboard_shortcuts("false")
+                            filter_views = driver2.find_elements_by_xpath(xpaths.filter_views_path)
+                            filter_view_names = []
+                            for filter_view in filter_views:
+                                filter_view_names.append(filter_view.get_attribute("innerHTML").split("""<div class="goog-menuitem-checkbox"></div>""")[1])
+                            for filter_view_name in filter_view_names:
+                                send_key_combo(Keys.ALT, 'd')
+                                while driver2.find_element_by_xpath(xpaths.sheets_filter_views_menu_path).get_attribute("class") != "goog-menuitem apps-menuitem goog-submenu goog-menuitem-highlight":
+                                    send_keys(Keys.ARROW_DOWN)
+                                send_keys(Keys.ARROW_RIGHT)
+                                while driver2.find_element_by_xpath(xpaths.filter_views_path + """[contains(text(),'""" + filter_view_name + """')]/parent::*""").get_attribute("class") != "goog-menuitem apps-menuitem goog-option goog-menuitem-highlight":
+                                    send_keys(Keys.ARROW_DOWN)
+                                send_keys(Keys.ENTER)
+                                WebDriverWait(driver2, 10).until(EC.presence_of_element_located((By.XPATH, xpaths.filter_view_input_path))).send_keys(Keys.CONTROL + 'a', Keys.BACKSPACE)
+                                driver2.find_element_by_xpath(xpaths.filter_view_input_path).send_keys("A1:" + chr(columns_needed(length_of_charts) + 62) + str(rows), Keys.ENTER)
+                                try:
+                                    driver2.find_element_by_xpath(xpaths.filter_view_popup_dismiss_path).click()
+                                except NoSuchElementException:
+                                    pass
+                                try:
+                                    driver2.find_element_by_xpath(xpaths.sheets_understood_path).click()
+                                except NoSuchElementException:
+                                    pass
+                                driver2.find_element_by_xpath(xpaths.filter_view_close_path).click()
                         if song_complete == False:
                             with shelve_open(path.join(location, "songs")) as d:
                                 d[personal_link] = True
