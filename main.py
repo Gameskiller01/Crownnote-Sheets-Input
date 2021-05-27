@@ -97,14 +97,20 @@ def change_colour(colour):
     driver2.find_element_by_xpath(xpaths.sheets_text_colour_path).click()
     WebDriverWait(driver2, 5).until(EC.element_to_be_clickable((By.XPATH, colour))).click()
 
-def get_rows_or_columns(path, message):
-    timeout = time() + 2
+def get_rows_or_columns(row_or_column, message):
+    timeout = time() + 5
     while True:
         try:
-            if path == xpaths.find_column_path:
-                rows_or_columns = ord(driver2.find_element_by_xpath(path).get_attribute("innerHTML").split("column ")[1]) - 64
-            elif path == xpaths.find_row_path:
-                rows_or_columns = int(driver2.find_element_by_xpath(path).get_attribute("innerHTML").split("row ")[1])
+            if row_or_column == "column":
+                try:
+                    rows_or_columns = ord(driver2.find_element_by_xpath(xpaths.find_column_path_2).get_attribute("aria-label").split("Column ")[1].split(" ")[0]) - 64
+                except NoSuchElementException:
+                    rows_or_columns = ord(driver2.find_element_by_xpath(xpaths.find_column_path).get_attribute("aria-label").split("Delete column ")[1].split(" ")[0]) - 64
+            elif row_or_column == "row":
+                try:
+                    rows_or_columns = int(driver2.find_element_by_xpath(xpaths.find_row_path_2).get_attribute("aria-label").split("Row ")[1].split(" ")[0])
+                except NoSuchElementException:
+                    rows_or_columns = int(driver2.find_element_by_xpath(xpaths.find_row_path).get_attribute("aria-label").split("Delete row ")[1].split(" ")[0])
             break
         except StaleElementReferenceException:
             pass
@@ -335,17 +341,21 @@ try:
         
         driver2.find_element_by_xpath(xpaths.sheets_tools_button_path).click()
         if driver2.find_element_by_xpath(xpaths.sheets_disable_autocomplete_path).get_attribute("aria-checked") == "true":
-            driver2.find_element_by_xpath(xpaths.sheets_disable_autocomplete_path).click()
+            try:
+                driver2.find_element_by_xpath(xpaths.sheets_disable_autocomplete_path).click()
+            except ElementNotInteractableException:
+                send_keys(Keys.ESCAPE)
+                click_menu_item(xpaths.sheets_tools_button_path, xpaths.sheets_autocomplete_menu_path, xpaths.sheets_disable_autocomplete_path)
         else:
             send_keys(Keys.ESCAPE)
         
         send_key_combo(Keys.CONTROL, Keys.END)
-        rows = get_rows_or_columns(xpaths.find_row_path, "Could not get amount of rows in spreadsheet.")
-        columns = get_rows_or_columns(xpaths.find_column_path, "Could not get amount of columns in spreadsheet.")
+        rows = get_rows_or_columns("row", "Could not get amount of rows in spreadsheet.")
+        columns = get_rows_or_columns("column", "Could not get amount of columns in spreadsheet.")
         while rows < 3:
             send_key_combo(Keys.ALT, 'i')
             send_keys('b')
-            rows = get_rows_or_columns(xpaths.find_row_path, "Could not get amount of rows in spreadsheet.")
+            rows = get_rows_or_columns("row", "Could not get amount of rows in spreadsheet.")
         try:
             driver2.find_element_by_xpath(xpaths.sheets_understood_path).click()
         except NoSuchElementException:
@@ -353,7 +363,7 @@ try:
         while columns < columns_needed(length_of_charts):
             send_key_combo(Keys.ALT, 'i')
             send_keys('o')
-            columns = get_rows_or_columns(xpaths.find_column_path, "Could not get amount of columns in spreadsheet.")
+            columns = get_rows_or_columns("column", "Could not get amount of columns in spreadsheet.")
         send_key_combo(Keys.CONTROL, Keys.HOME)
 
         create_shelve_file("variables", spreadsheet_link, False)
@@ -371,7 +381,7 @@ try:
                 send_keys(Keys.ARROW_RIGHT, "Weeks in Top " + str(length_of_charts))
             send_keys(Keys.ARROW_DOWN, Keys.ARROW_UP)
             
-            if get_rows_or_columns(xpaths.find_column_path, "Could not get position of selection in spreadsheet.") != 1:
+            if get_rows_or_columns("column", "Could not get position of selection in spreadsheet.") != 1:
                 hold_key(Keys.SHIFT)
                 send_keys(Keys.ARROW_LEFT)
                 while driver2.find_element_by_xpath(xpaths.sheets_selection_path).get_attribute("style").split("left: ")[1].split("px;")[0] != "0":
@@ -381,7 +391,11 @@ try:
                 send_key_combo(Keys.CONTROL, 'b')
             
             send_key_combo(Keys.CONTROL, Keys.SPACE)
-            click_menu_item(xpaths.sheets_format_button_path, xpaths.sheets_text_wrapping_menu_path, xpaths.text_wrapping_clip_path)
+            try:
+                click_menu_item(xpaths.sheets_format_button_path, xpaths.sheets_text_wrapping_menu_path_2, xpaths.text_wrapping_clip_path)
+            except NoSuchElementException:
+                send_keys(Keys.ESCAPE)
+                click_menu_item(xpaths.sheets_format_button_path, xpaths.sheets_text_wrapping_menu_path, xpaths.text_wrapping_clip_path)
             send_keys(Keys.ARROW_RIGHT)
             
             go_to_cell(chr(columns_needed(length_of_charts) + 64) + "2")
@@ -396,7 +410,7 @@ try:
             
             send_keys(Keys.ARROW_RIGHT)
             toggle_keyboard_shortcuts("false")
-            while get_rows_or_columns(xpaths.find_column_path, "Could not get position of selection in spreadsheet.") + 1 <= columns_needed(length_of_charts) - 2:
+            while get_rows_or_columns("column", "Could not get position of selection in spreadsheet.") + 1 <= columns_needed(length_of_charts) - 2:
                 send_key_combo(Keys.ALT, 'd')
                 while driver2.find_element_by_xpath(xpaths.sheets_filter_views_menu_path).get_attribute("class") != "goog-menuitem apps-menuitem goog-submenu goog-menuitem-highlight":
                     send_keys(Keys.ARROW_DOWN)
@@ -496,7 +510,7 @@ try:
                         if length_of_charts > 1:
                             weeks_in_range["Weeks in Top " + str(length_of_charts)] = [0, "Consecutive"]
                         WebDriverWait(driver1, 60).until(EC.presence_of_element_located((By.XPATH, xpaths.song_charts_list_path)))
-                        current_row = get_rows_or_columns(xpaths.find_row_path, "Could not get position of selection in spreadsheet.")
+                        current_row = get_rows_or_columns("row", "Could not get position of selection in spreadsheet.")
                         song_charts = driver1.find_elements_by_xpath(xpaths.song_charts_path)
                         song_chart_runs = [[None for i in range(2)] for j in range(len(song_charts))]
                         for i, song_chart in enumerate(song_charts):
