@@ -88,11 +88,6 @@ def click_menu_item(main_menu, sub_menu, button):
     action.perform()
     WebDriverWait(driver2, 5).until(EC.presence_of_element_located((By.XPATH, button))).click()
 
-def double_click(path):
-    action = ActionChains(driver2)
-    action.double_click(driver2.find_element_by_xpath(path))
-    action.perform()
-
 def change_colour(colour):
     driver2.find_element_by_xpath(xpaths.sheets_text_colour_path).click()
     WebDriverWait(driver2, 5).until(EC.element_to_be_clickable((By.XPATH, colour))).click()
@@ -102,10 +97,13 @@ def get_rows_or_columns(row_or_column, message):
     while True:
         try:
             if row_or_column == "column":
+                rows_or_columns = 0
                 try:
-                    rows_or_columns = ord(driver2.find_element_by_xpath(xpaths.find_column_path_2).get_attribute("aria-label").split("Column ")[1].split(" ")[0]) - 64
+                    label_of_column = driver2.find_element_by_xpath(xpaths.find_column_path_2).get_attribute("aria-label").split("Column ")[1].split(" ")[0]
                 except NoSuchElementException:
-                    rows_or_columns = ord(driver2.find_element_by_xpath(xpaths.find_column_path).get_attribute("aria-label").split("Delete column ")[1].split(" ")[0]) - 64
+                    label_of_column = driver2.find_element_by_xpath(xpaths.find_column_path).get_attribute("aria-label").split("Delete column ")[1].split(" ")[0]
+                for i, char in enumerate(list(label_of_column)):
+                    rows_or_columns += (ord(char) - 64) * pow(26, len(list(label_of_column)) - i - 1)
             elif row_or_column == "row":
                 try:
                     rows_or_columns = int(driver2.find_element_by_xpath(xpaths.find_row_path_2).get_attribute("aria-label").split("Row ")[1].split(" ")[0])
@@ -297,7 +295,7 @@ try:
     options2.add_argument('--hide-scrollbars')
     options2.add_argument("--log-level=3")
     options2.add_argument("--user-data-dir=" + getenv("LOCALAPPDATA") + "\\Google\\Chrome\\Selenium User Data")
-    options2.headless=True
+    #options2.headless=True
     
     driver1 = webdriver.Chrome(ChromeDriverManager().install(), desired_capabilities=caps)
     driver2 = webdriver.Chrome(ChromeDriverManager().install(), options=options2)
@@ -415,19 +413,17 @@ try:
                 while driver2.find_element_by_xpath(xpaths.sheets_filter_views_menu_path).get_attribute("class") != "goog-menuitem apps-menuitem goog-submenu goog-menuitem-highlight":
                     send_keys(Keys.ARROW_DOWN)
                 send_keys(Keys.ARROW_RIGHT, Keys.ENTER, Keys.ARROW_RIGHT)
-                WebDriverWait(driver2, 10).until(EC.presence_of_element_located((By.XPATH, xpaths.filter_view_name_path))).send_keys(Keys.CONTROL + 'a', Keys.BACKSPACE)
+                WebDriverWait(driver2, 10).until(EC.element_to_be_clickable((By.XPATH, xpaths.filter_view_name_path))).click()
+                driver2.find_element_by_xpath(xpaths.filter_view_name_path).send_keys(Keys.CONTROL + 'a', Keys.BACKSPACE)
                 driver2.find_element_by_xpath(xpaths.filter_view_name_path).send_keys(driver2.find_element_by_xpath(xpaths.formula_bar_path).get_attribute("innerHTML").split("<br>")[0], Keys.ENTER)
-                try:
-                    driver2.find_element_by_xpath(xpaths.filter_view_popup_dismiss_path).click()
-                except NoSuchElementException:
-                    pass
                 driver2.find_element_by_xpath(xpaths.filter_view_input_path).send_keys(Keys.CONTROL + 'a', Keys.BACKSPACE)
                 driver2.find_element_by_xpath(xpaths.filter_view_input_path).send_keys("A1:" + chr(columns_needed(length_of_charts) + 62) + str(rows), Keys.ENTER)
                 send_key_combo(Keys.CONTROL, 'r', Keys.ALT)
                 WebDriverWait(driver2, 5).until(EC.presence_of_element_located((By.XPATH, xpaths.sort_column_path))).click()
                 driver2.find_element_by_xpath(xpaths.filter_view_close_path).click()
             
-            double_click(xpaths.sheets_name_path)
+            driver2.find_element_by_xpath(xpaths.sheets_tab_dropdown_path).click()
+            WebDriverWait(driver2, 5).until(EC.element_to_be_clickable((By.XPATH, xpaths.sheets_tab_rename_path))).click()
             WebDriverWait(driver2, 5).until(EC.presence_of_element_located((By.XPATH, xpaths.sheets_rename_input_path))).send_keys("Singles", Keys.ENTER)
             
             click_menu_item(xpaths.sheets_view_button_path, xpaths.sheets_freeze_menu_path, xpaths.freeze_one_row_path)
@@ -597,7 +593,8 @@ try:
                                 while driver2.find_element_by_xpath(xpaths.filter_views_path + """[contains(text(),'""" + filter_view_name + """')]/parent::*""").get_attribute("class") != "goog-menuitem apps-menuitem goog-option goog-menuitem-highlight":
                                     send_keys(Keys.ARROW_DOWN)
                                 send_keys(Keys.ENTER)
-                                WebDriverWait(driver2, 10).until(EC.presence_of_element_located((By.XPATH, xpaths.filter_view_input_path))).send_keys(Keys.CONTROL + 'a', Keys.BACKSPACE)
+                                WebDriverWait(driver2, 10).until(EC.element_to_be_clickable((By.XPATH, xpaths.filter_view_input_path))).click()
+                                driver2.find_element_by_xpath(xpaths.filter_view_input_path).send_keys(Keys.CONTROL + 'a', Keys.BACKSPACE)
                                 driver2.find_element_by_xpath(xpaths.filter_view_input_path).send_keys("A1:" + chr(columns_needed(length_of_charts) + 62) + str(rows), Keys.ENTER)
                                 try:
                                     driver2.find_element_by_xpath(xpaths.filter_view_popup_dismiss_path).click()
