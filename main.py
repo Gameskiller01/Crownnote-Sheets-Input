@@ -413,7 +413,17 @@ try:
                 while driver2.find_element_by_xpath(xpaths.sheets_filter_views_menu_path).get_attribute("class") != "goog-menuitem apps-menuitem goog-submenu goog-menuitem-highlight":
                     send_keys(Keys.ARROW_DOWN)
                 send_keys(Keys.ARROW_RIGHT, Keys.ENTER, Keys.ARROW_RIGHT)
-                WebDriverWait(driver2, 10).until(EC.element_to_be_clickable((By.XPATH, xpaths.filter_view_name_path))).click()
+                timeout = time() + 5
+                while True:
+                    try:
+                        WebDriverWait(driver2, 10).until(EC.element_to_be_clickable((By.XPATH, xpaths.filter_view_name_path))).click()
+                        break
+                    except ElementClickInterceptedException:
+                        pass
+                    except ElementNotInteractableException:
+                        pass
+                    if time() > timeout:
+                        raise_exception("Could not input name of filter view.")
                 driver2.find_element_by_xpath(xpaths.filter_view_name_path).send_keys(Keys.CONTROL + 'a', Keys.BACKSPACE)
                 driver2.find_element_by_xpath(xpaths.filter_view_name_path).send_keys(driver2.find_element_by_xpath(xpaths.formula_bar_path).get_attribute("innerHTML").split("<br>")[0], Keys.ENTER)
                 try:
@@ -425,6 +435,8 @@ try:
                 send_key_combo(Keys.CONTROL, 'r', Keys.ALT)
                 WebDriverWait(driver2, 5).until(EC.presence_of_element_located((By.XPATH, xpaths.sort_column_path))).click()
                 driver2.find_element_by_xpath(xpaths.filter_view_close_path).click()
+                while driver2.find_element_by_xpath(xpaths.filterbar_path).get_attribute("style").split("display: ")[-1].split(";")[0] != "none":
+                    pass
             
             driver2.find_element_by_xpath(xpaths.sheets_tab_dropdown_path).click()
             WebDriverWait(driver2, 5).until(EC.element_to_be_clickable((By.XPATH, xpaths.sheets_tab_rename_path))).click()
@@ -597,7 +609,17 @@ try:
                                 while driver2.find_element_by_xpath(xpaths.filter_views_path + """[contains(text(),'""" + filter_view_name + """')]/parent::*""").get_attribute("class") != "goog-menuitem apps-menuitem goog-option goog-menuitem-highlight":
                                     send_keys(Keys.ARROW_DOWN)
                                 send_keys(Keys.ENTER)
-                                WebDriverWait(driver2, 10).until(EC.element_to_be_clickable((By.XPATH, xpaths.filter_view_input_path))).click()
+                                timeout = time() + 5
+                                while True:
+                                    try:
+                                        WebDriverWait(driver2, 10).until(EC.element_to_be_clickable((By.XPATH, xpaths.filter_view_input_path))).click()
+                                        break
+                                    except ElementClickInterceptedException:
+                                        pass
+                                    except ElementNotInteractableException:
+                                        pass
+                                    if time() > timeout:
+                                        raise_exception("Could not edit range of filter view.")
                                 driver2.find_element_by_xpath(xpaths.filter_view_input_path).send_keys(Keys.CONTROL + 'a', Keys.BACKSPACE)
                                 driver2.find_element_by_xpath(xpaths.filter_view_input_path).send_keys("A1:" + chr(columns_needed(length_of_charts) + 62) + str(rows), Keys.ENTER)
                                 try:
@@ -609,6 +631,8 @@ try:
                                 except NoSuchElementException:
                                     pass
                                 driver2.find_element_by_xpath(xpaths.filter_view_close_path).click()
+                                while driver2.find_element_by_xpath(xpaths.filterbar_path).get_attribute("style").split("display: ")[-1].split(";")[0] != "none":
+                                    pass
                         if song_complete == False:
                             with shelve_open(path.join(location, "songs")) as d:
                                 d[personal_link] = True
