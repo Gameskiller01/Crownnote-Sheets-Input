@@ -295,7 +295,7 @@ try:
     options2.add_argument('--hide-scrollbars')
     options2.add_argument("--log-level=3")
     options2.add_argument("--user-data-dir=" + getenv("LOCALAPPDATA") + "\\Google\\Chrome\\Selenium User Data")
-    #options2.headless=True
+    options2.headless=True
     
     driver1 = webdriver.Chrome(ChromeDriverManager().install(), desired_capabilities=caps)
     driver2 = webdriver.Chrome(ChromeDriverManager().install(), options=options2)
@@ -416,6 +416,10 @@ try:
                 WebDriverWait(driver2, 10).until(EC.element_to_be_clickable((By.XPATH, xpaths.filter_view_name_path))).click()
                 driver2.find_element_by_xpath(xpaths.filter_view_name_path).send_keys(Keys.CONTROL + 'a', Keys.BACKSPACE)
                 driver2.find_element_by_xpath(xpaths.filter_view_name_path).send_keys(driver2.find_element_by_xpath(xpaths.formula_bar_path).get_attribute("innerHTML").split("<br>")[0], Keys.ENTER)
+                try:
+                    driver2.find_element_by_xpath(xpaths.filter_view_popup_dismiss_path).click()
+                except NoSuchElementException:
+                    pass
                 driver2.find_element_by_xpath(xpaths.filter_view_input_path).send_keys(Keys.CONTROL + 'a', Keys.BACKSPACE)
                 driver2.find_element_by_xpath(xpaths.filter_view_input_path).send_keys("A1:" + chr(columns_needed(length_of_charts) + 62) + str(rows), Keys.ENTER)
                 send_key_combo(Keys.CONTROL, 'r', Keys.ALT)
