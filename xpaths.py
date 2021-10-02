@@ -46,7 +46,7 @@ sheets_rename_input_path = """//*[@class="docs-sheet-tab-name" and @contentedita
 sheets_text_colour_path = """//*[@class="docs-toolbar-color-menu-button goog-toolbar-menu-button goog-inline-block goog-toolbar-color-menu-button"]"""
 sheets_blue_path = """//*[starts-with(@class, "docs-material-colorpalette-cell") and @aria-label="blue"]"""
 sheets_red_path = """//*[starts-with(@class, "docs-material-colorpalette-cell") and @aria-label="red"]"""
-input_url_path = """//*[starts-with(@id, "bubble-")]/div[1]/div[2]/div[1]/div/div[1]/div/input"""
+input_url_path = """//*[starts-with(@id, "bubble-")]/div[1]/div[2]/div/div/div[1]/div[1]/div/div/div[1]/input"""
 find_row_path = """//span[starts-with(@aria-label, "Delete row ")]/strong/parent::*"""
 find_row_path_2 = """//*[@class="goog-menuitem apps-menuitem"]/div/span[starts-with(@aria-label, "Row ") and not(starts-with(@aria-label, "Row below"))]/strong/span/parent::*/parent::*"""
 find_column_path = """//span[starts-with(@aria-label, "Delete column ")]/strong/parent::*"""
