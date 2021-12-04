@@ -1,16 +1,18 @@
 import xpaths
 from time import time
-from re import findall
 from html import unescape
 from shutil import rmtree
 from subprocess import call
+from platform import system
+from re import findall, split
+from os import path, makedirs
 from selenium import webdriver
-from os import getenv, path, makedirs
-from cryptography.fernet import Fernet
+from warnings import filterwarnings
 from shelve import open as shelve_open
 from datetime import datetime, timedelta
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
+from appdirs import user_data_dir, user_config_dir
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from webdriver_manager.chrome import ChromeDriverManager
@@ -18,6 +20,8 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.action_chains import ActionChains
 from undetected_chromedriver.v2 import Chrome as UndetectedChrome, ChromeOptions as UndetectedChromeOptions
 from selenium.common.exceptions import TimeoutException, InvalidArgumentException, NoSuchElementException, StaleElementReferenceException, ElementNotInteractableException, ElementClickInterceptedException, WebDriverException
+
+filterwarnings("ignore", category=DeprecationWarning)
 
 class EndCodeException(Exception):
     pass
@@ -27,8 +31,14 @@ def create_shelve_file(name, variable, value):
         if variable not in d:
             d[variable] = value
 
+def clear_screen():
+    if system() == "Linux":
+        call("clear", shell=True)
+    else:
+        call("cls", shell=True)
+
 def raise_exception(message):
-    call("cls", shell=True)
+    clear_screen()
     print(message)
     raise EndCodeException
 
@@ -39,7 +49,7 @@ def driver_get(driver, website):
             driver.get(website)
             break
         except WebDriverException:
-            call("cls", shell=True)
+            clear_screen()
             print("Could not load website " + website + ". Retrying...")
         if time() > timeout:
             raise_exception("Took too long to load website " + website + ".")
@@ -133,7 +143,10 @@ def colour_key(message, number, path):
     change_colour(path)
     driver2.find_element_by_xpath(xpaths.edit_active_cell_path).send_keys(Keys.ENTER)
 
-location = path.join(getenv("APPDATA"), "Crownnote")
+if system() == "Windows":
+    location = user_data_dir("Crownnote", roaming = True)[:-10]
+else:
+    location = user_data_dir("Crownnote")
 if not path.exists(location):
     makedirs(location)
 create_shelve_file("variables", "username", None)
@@ -143,139 +156,51 @@ create_shelve_file("variables", "spreadsheet_link", None)
 with shelve_open(path.join(location, "variables")) as d:
     if d["username"] == None:
         d["username"] = input("Enter your CrownNote username: ")
-        call("cls", shell=True)
+        clear_screen()
     if d["length_of_charts"] == None:
         while True:
             try:
                 d["length_of_charts"] = int(input("Enter how many songs you have in each of your weekly CrownNote charts: "))
-                call("cls", shell=True)
+                clear_screen()
                 if d["length_of_charts"] < 1:
                     print("The length of your CrownNote charts must be greater than 0. Please try again.")
                     continue
                 break
             except ValueError:
-                call("cls", shell=True)
+                clear_screen()
                 print("The length of your CrownNote charts must be an integer. Please try again.")
     if d["spreadsheet_link"] == None:
         d["spreadsheet_link"] = input("""Enter the share link to your spreadsheet (making sure that the mode is set to "Anyone on the Internet with this link can edit"): """).split("?")[0]
-        call("cls", shell=True)
+        clear_screen()
     username = d["username"]
     length_of_charts = d["length_of_charts"]
     spreadsheet_link = d["spreadsheet_link"]
-personal_link_path = """//*[@id="block-views-32f0a13b6ed96df9665df3ef2668965a"]/div/div/div/div[@class='view-content']//a[contains(text(),'""" + username + """')]/parent::*/parent::*//a[@class='btn btn--plain']"""
-
-with open('main.key', 'rb') as key:
-    with open('.enc', 'rb') as enc_file:
-        decrypted = str(Fernet(key.read()).decrypt(enc_file.read()))[2:][:-1].split("\\r\\n")
+ersonal_link_path = """//*[@id="block-views-32f0a13b6ed96df9665df3ef2668965a"]/div/div/div/div[@class='view-content']//a[contains(text(),'""" + username + """')]/parent::*/parent::*//a[@class='btn btn--plain']"""
 
 lengths = [3, 5, 10, 20, 40, 75, 100]
 
-create_shelve_file("variables", "login", False)
-
 try:
-    
-    headless=Options()
-    headless.headless=True
-    try:
-        webdriver.Chrome(ChromeDriverManager().install(), options=headless).quit()
-    except ValueError:
-        raise_exception("It seems like Google Chrome is not installed. Please install it and try again.")
-    call("cls", shell=True)
-    
-    with shelve_open(path.join(location, "variables")) as d:
-        login = d["login"]
-    if login == False:
-        uc_options = UndetectedChromeOptions()
-        uc_options.add_argument("--start-maximized")
-        uc_options.add_argument("--user-data-dir=" + getenv("LOCALAPPDATA") + "\\Google\\Chrome\\Selenium User Data")
-        
-        driver_login = UndetectedChrome(options=uc_options)
-        
-        try:
-            
-            driver_get(driver_login, "https://accounts.google.com/signin/v2/identifier")
-            WebDriverWait(driver_login, 30).until(EC.presence_of_element_located((By.XPATH, xpaths.google_username_path))).send_keys(decrypted[2], Keys.ENTER)
-            WebDriverWait(driver_login, 30).until(EC.visibility_of_element_located((By.XPATH, xpaths.google_password_path))).send_keys(decrypted[3], Keys.ENTER)
-            WebDriverWait(driver_login, 30).until(lambda driver_login: driver_login.find_elements(By.XPATH, xpaths.google_phone_number_input_path) or driver_login.find_elements(By.XPATH, xpaths.google_confirm_phone_number_path) or driver_login.find_elements(By.XPATH, xpaths.google_text_path) or driver_login.find_elements(By.XPATH, xpaths.google_home_path))
-            timeout = time() + 5
-            while time() < timeout:
-                try:
-                    try:
-                        driver_login.find_element_by_xpath(xpaths.google_phone_number_input_path).send_keys(decrypted[4], Keys.ENTER)
-                    except NoSuchElementException:
-                        try:
-                            try:
-                                driver_login.find_element_by_xpath(xpaths.google_confirm_phone_number_path).click()
-                            except ElementClickInterceptedException:
-                                WebDriverWait(driver_login, 10).until(EC.element_to_be_clickable((By.XPATH, xpaths.google_confirm_phone_number_path))).click()
-                            WebDriverWait(driver_login, 30).until(EC.visibility_of_element_located((By.XPATH, xpaths.google_phone_number_input_path))).send_keys(decrypted[4], Keys.ENTER)
-                        except NoSuchElementException:
-                            try:
-                                try:
-                                    driver_login.find_element_by_xpath(xpaths.google_text_path).click()
-                                except ElementClickInterceptedException:
-                                    WebDriverWait(driver_login, 10).until(EC.element_to_be_clickable((By.XPATH, xpaths.google_text_path))).click()
-                                WebDriverWait(driver_login, 30).until(lambda driver_login: driver_login.find_elements(By.XPATH, xpaths.google_too_many_attempts_path) or driver_login.find_elements(By.XPATH, xpaths.google_verification_input_path))
-                                try:
-                                    driver_login.find_element_by_xpath(xpaths.google_verification_input_path)
-                                    driver_verification = webdriver.Chrome(ChromeDriverManager().install(), options=headless)
-                                    call("cls", shell=True)
-                                    try:
-                                        driver_get(driver_verification, decrypted[5])
-                                        WebDriverWait(driver_verification, 45).until(EC.visibility_of_element_located((By.XPATH, xpaths.recovery_phone_messages_path)))
-                                        timeout2 = time() + 30
-                                        while time() < timeout2:
-                                            try:
-                                                WebDriverWait(driver_verification, 30).until(EC.visibility_of_element_located((By.XPATH, xpaths.recovery_phone_messages_path)))
-                                                driver_login.find_element_by_xpath(xpaths.google_verification_input_path).send_keys(driver_verification.find_element_by_xpath(xpaths.recovery_phone_google_message_path).get_attribute("innerHTML"), Keys.ENTER)
-                                                break
-                                            except NoSuchElementException:
-                                                driver_verification.find_element_by_xpath(xpaths.recovery_phone_refresh_path).click()
-                                    finally:
-                                        driver_verification.close()
-                                        driver_verification.quit()
-                                except NoSuchElementException:
-                                    pass
-                            except NoSuchElementException:
-                                pass
-                    break
-                except ElementNotInteractableException:
-                    pass
-            WebDriverWait(driver_login, 30).until(EC.presence_of_element_located((By.XPATH, xpaths.google_home_path)))
-            with shelve_open(path.join(location, "variables")) as d:
-                d["login"] = True
-        
-        except TimeoutException:
-            pass
-        finally:
-            driver_login.close()
-            driver_login.quit()
-            with shelve_open(path.join(location, "variables")) as d:
-                login = d["login"]
-            if login == False:
-                try:
-                    rmtree(path.join(getenv("LOCALAPPDATA") + "\\Google\\Chrome", "Selenium User Data"))
-                except FileNotFoundError:
-                    pass
     
     options1 = Options()
     options1.add_argument("--start-maximized")
     options1.add_argument('--hide-scrollbars')
     options1.add_argument("--log-level=3")
-    options1.headless=True
-    caps = options1.to_capabilities()
-    caps["pageLoadStrategy"] = "eager"
+    options1.add_argument("--headless")
+    options1.page_load_strategy = "eager"
     
-    options2 = Options()
+    options2 = UndetectedChromeOptions()
     options2.add_argument("--window-size=1920,1080")
     options2.add_argument('--hide-scrollbars')
     options2.add_argument("--log-level=3")
-    options2.add_argument("--user-data-dir=" + getenv("LOCALAPPDATA") + "\\Google\\Chrome\\Selenium User Data")
-    options2.headless=True
+    if system() == "Windows":
+        options2.add_argument("--user-data-dir=" + user_config_dir("Chrome", "Google") + "\\Selenium User Data")
+    else:
+        options2.add_argument("--user-data-dir=" + user_config_dir("google-chrome-selenium"))
+    options2.add_argument("--headless")
     
-    driver1 = webdriver.Chrome(ChromeDriverManager().install(), desired_capabilities=caps)
-    driver2 = webdriver.Chrome(ChromeDriverManager().install(), options=options2)
-    call("cls", shell=True)
+    driver1 = webdriver.Chrome(ChromeDriverManager().install(), options=options1)
+    driver2 = UndetectedChrome(options=options2)
+    clear_screen()
     
     try:
         
@@ -448,7 +373,7 @@ try:
             if chart == False:
                 driver_get(driver1, link[0])
                 WebDriverWait(driver1, 90).until(EC.presence_of_element_located((By.XPATH, xpaths.final_weeks_path)))
-                call("cls", shell=True)
+                clear_screen()
                 print("Loaded chart dated " + link[1])
                 
                 with shelve_open(path.join(location, "variables")) as d:
@@ -620,7 +545,7 @@ try:
         print("Finished")
     
     except TimeoutException:
-        call("cls", shell=True)
+        clear_screen()
         print("Encountered a timeout error.")
     finally:
         input("Press Enter to exit.")
