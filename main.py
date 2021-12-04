@@ -27,10 +27,6 @@ def create_shelve_file(name, variable, value):
         if variable not in d:
             d[variable] = value
 
-def expand_root_element(element):
-    shadow_root = driver_login.execute_script('return arguments[0].shadowRoot', element)
-    return shadow_root
-
 def raise_exception(message):
     call("cls", shell=True)
     print(message)
@@ -93,27 +89,15 @@ def change_colour(colour):
     WebDriverWait(driver2, 5).until(EC.element_to_be_clickable((By.XPATH, colour))).click()
 
 def get_rows_or_columns(row_or_column, message):
-    timeout = time() + 5
-    while True:
-        try:
-            if row_or_column == "column":
-                rows_or_columns = 0
-                try:
-                    label_of_column = driver2.find_element_by_xpath(xpaths.find_column_path_2).get_attribute("aria-label").split("Column ")[1].split(" ")[0]
-                except NoSuchElementException:
-                    label_of_column = driver2.find_element_by_xpath(xpaths.find_column_path).get_attribute("aria-label").split("Delete column ")[1].split(" ")[0]
-                for i, char in enumerate(list(label_of_column)):
-                    rows_or_columns += (ord(char) - 64) * pow(26, len(list(label_of_column)) - i - 1)
-            elif row_or_column == "row":
-                try:
-                    rows_or_columns = int(driver2.find_element_by_xpath(xpaths.find_row_path_2).get_attribute("aria-label").split("Row ")[1].split(" ")[0])
-                except NoSuchElementException:
-                    rows_or_columns = int(driver2.find_element_by_xpath(xpaths.find_row_path).get_attribute("aria-label").split("Delete row ")[1].split(" ")[0])
-            break
-        except StaleElementReferenceException:
-            pass
-        if time() > timeout:
-            raise_exception(message)
+    send_key_combo(Keys.CONTROL, 'j')
+    if row_or_column == "column":
+        rows_or_columns = 0
+        label_of_column = split('(\d+)', driver2.find_element_by_xpath(xpaths.find_row_or_column_path).get_attribute("innerText").split("Name box. Ctrl + J. ")[1].split(" ")[0])[0]
+        for i, char in enumerate(list(label_of_column)):
+            rows_or_columns += (ord(char) - 64) * pow(26, len(list(label_of_column)) - i - 1)
+    elif row_or_column == "row":
+        rows_or_columns = int(split('(\d+)', driver2.find_element_by_xpath(xpaths.find_row_or_column_path).get_attribute("innerText").split("Name box. Ctrl + J. ")[1].split(" ")[0])[1])
+    send_keys(Keys.ESCAPE)
     return rows_or_columns
 
 def go_to_cell(cell):
@@ -209,14 +193,6 @@ try:
         
         try:
             
-            driver_get(driver_login, "chrome://settings/passwords")
-            timeout = time() + 5
-            while time() < timeout:
-                try:
-                    expand_root_element(expand_root_element(expand_root_element(expand_root_element(expand_root_element(expand_root_element(driver_login.find_element_by_tag_name("settings-ui")).find_element_by_tag_name("settings-main")).find_element_by_tag_name("settings-basic-page")).find_element_by_tag_name("settings-autofill-page")).find_element_by_tag_name("passwords-section")).find_element_by_tag_name("settings-toggle-button")).find_element_by_tag_name("cr-toggle").click()
-                    break
-                except ElementNotInteractableException:
-                    pass
             driver_get(driver_login, "https://accounts.google.com/signin/v2/identifier")
             WebDriverWait(driver_login, 30).until(EC.presence_of_element_located((By.XPATH, xpaths.google_username_path))).send_keys(decrypted[2], Keys.ENTER)
             WebDriverWait(driver_login, 30).until(EC.visibility_of_element_located((By.XPATH, xpaths.google_password_path))).send_keys(decrypted[3], Keys.ENTER)
@@ -338,12 +314,10 @@ try:
             raise_exception("""The spreadsheet link provided is not editable. Please set it to "Anyone on the Internet with this link can edit" and try again.""")
         
         driver2.find_element_by_xpath(xpaths.sheets_tools_button_path).click()
+        action = ActionChains(driver2).move_to_element(driver2.find_element_by_xpath(xpaths.sheets_autocomplete_menu_path))
+        action.perform()
         if driver2.find_element_by_xpath(xpaths.sheets_disable_autocomplete_path).get_attribute("aria-checked") == "true":
-            try:
-                driver2.find_element_by_xpath(xpaths.sheets_disable_autocomplete_path).click()
-            except ElementNotInteractableException:
-                send_keys(Keys.ESCAPE)
-                click_menu_item(xpaths.sheets_tools_button_path, xpaths.sheets_autocomplete_menu_path, xpaths.sheets_disable_autocomplete_path)
+            driver2.find_element_by_xpath(xpaths.sheets_disable_autocomplete_path).click()
         else:
             send_keys(Keys.ESCAPE)
         
