@@ -204,11 +204,6 @@ try:
     
     try:
         
-        driver_get(driver1, "https://crownnote.com/user/login")
-        WebDriverWait(driver1, 15).until(EC.presence_of_element_located((By.XPATH, xpaths.username_path)))
-        driver1.find_element_by_xpath(xpaths.username_path).send_keys(decrypted[0])
-        driver1.find_element_by_xpath(xpaths.password_path).send_keys(decrypted[1], Keys.ENTER)
-        WebDriverWait(driver1, 30).until(EC.presence_of_element_located((By.XPATH, xpaths.user_menu_path)))
         driver_get(driver1, "https://crownnote.com/users/" + username.replace(" ", "-"))
         
         try:
